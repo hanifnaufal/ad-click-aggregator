@@ -1,0 +1,1 @@
+./gradlew clean shadowJar && docker cp build/libs/flink-processor.jar ad-click-aggregator-jobmanager-1:/tmp/ && docker exec ad-click-aggregator-jobmanager-1 flink run -d /tmp/flink-processor.jar
