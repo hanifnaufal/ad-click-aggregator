@@ -30,9 +30,6 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-<<<<<<< HEAD
-      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
-=======
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
 
   jobmanager:
@@ -59,4 +56,3 @@ services:
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 2
 
->>>>>>> 008fdab (implement flink jobs)
