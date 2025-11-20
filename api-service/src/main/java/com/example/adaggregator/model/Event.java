@@ -30,6 +30,10 @@ public abstract class Event {
     @NotNull
     @JsonProperty("user_id")
     private String userId;
+
+    @NotNull
+    @JsonProperty("campaign_id")
+    private String campaignId;
     
     @NotNull
     @Positive

@@ -14,12 +14,9 @@ public class ClickEvent extends Event {
     private String adId;
     
     @NotNull
-    @JsonProperty("campaign_id")
-    private String campaignId;
-    
-    @NotNull
     @JsonProperty("source")
     private String source;
+    
     @JsonProperty("metadata")
     private Map<String, Object> metadata;
 }

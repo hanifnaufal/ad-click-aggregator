@@ -69,6 +69,7 @@ curl -v -X POST http://localhost:8080/api/v1/events \
     "event_id": "conv-1",
     "user_id": "user-123",
     "timestamp": 1678890000000,
+    "campaign_id": "camp-789",
     "type": "purchase",
     "value": 19.99,
     "source": "ios_app"
