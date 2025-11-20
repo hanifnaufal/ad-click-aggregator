@@ -6,8 +6,6 @@ import com.example.adaggregator.flink.model.ConversionEvent;
 import com.example.adaggregator.flink.model.Event;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
@@ -21,23 +19,23 @@ public class AttributionProcessFunction extends KeyedProcessFunction<String, Eve
     private static final Logger LOG = LoggerFactory.getLogger(AttributionProcessFunction.class);
     private static final long ATTRIBUTION_WINDOW_MS = Duration.ofHours(24).toMillis();
 
-    private transient ValueState<ClickEvent> lastClickState;
+    private transient MapState<String, ClickEvent> clicksPerCampaignState;
     private transient MapState<String, Long> processedConversionsState;
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        ValueStateDescriptor<ClickEvent> clickDescriptor = new ValueStateDescriptor<>(
-            "last-click",
+        MapStateDescriptor<String, ClickEvent> clickDescriptor = new MapStateDescriptor<>(
+            "clicks-per-campaign",
+            String.class,
             ClickEvent.class
         );
-        lastClickState = getRuntimeContext().getState(clickDescriptor);
+        clicksPerCampaignState = getRuntimeContext().getMapState(clickDescriptor);
 
         MapStateDescriptor<String, Long> conversionDescriptor = new MapStateDescriptor<>(
             "processed-conversions",
             String.class,
             Long.class
         );
-        // In a real production scenario, we should configure State TTL for this MapState to avoid infinite growth.
         processedConversionsState = getRuntimeContext().getMapState(conversionDescriptor);
     }
 
@@ -51,7 +49,7 @@ public class AttributionProcessFunction extends KeyedProcessFunction<String, Eve
     }
 
     private void processClick(ClickEvent click) throws Exception {
-        lastClickState.update(click);
+        clicksPerCampaignState.put(click.getCampaignId(), click);
     }
 
     private void processConversion(ConversionEvent conversion, Collector<AttributedEvent> out) throws Exception {        
@@ -60,22 +58,22 @@ public class AttributionProcessFunction extends KeyedProcessFunction<String, Eve
             return;
         }
 
-        ClickEvent lastClick = lastClickState.value();
+        ClickEvent matchingClick = clicksPerCampaignState.get(conversion.getCampaignId());
 
-        if (lastClick != null) {
-            long timeDiff = conversion.getTimestamp() - lastClick.getTimestamp();
+        if (matchingClick != null) {
+            long timeDiff = conversion.getTimestamp() - matchingClick.getTimestamp();
             
             if (timeDiff >= 0 && timeDiff <= ATTRIBUTION_WINDOW_MS) {
                 AttributedEvent attributed = AttributedEvent.builder()
                     .conversionId(conversion.getEventId())
-                    .clickId(lastClick.getEventId())
+                    .clickId(matchingClick.getEventId())
                     .userId(conversion.getUserId())
-                    .adId(lastClick.getAdId())
-                    .campaignId(lastClick.getCampaignId())
-                    .source(lastClick.getSource())
+                    .adId(matchingClick.getAdId())
+                    .campaignId(matchingClick.getCampaignId())
+                    .source(matchingClick.getSource())
                     .conversionType(conversion.getType())
                     .value(conversion.getValue())
-                    .clickTime(lastClick.getTimestamp())
+                    .clickTime(matchingClick.getTimestamp())
                     .conversionTime(conversion.getTimestamp())
                     .attributionWindowHours(24)
                     .build();
@@ -84,10 +82,12 @@ public class AttributionProcessFunction extends KeyedProcessFunction<String, Eve
 
                 processedConversionsState.put(conversion.getEventId(), conversion.getTimestamp());
             } else {
-                LOG.info("Conversion {} outside attribution window for user {}", conversion.getEventId(), conversion.getUserId());
+                LOG.info("Conversion {} outside attribution window for campaign {}", 
+                    conversion.getEventId(), conversion.getCampaignId());
             }
         } else {
-            LOG.info("No matching click found for conversion {} (user {})", conversion.getEventId(), conversion.getUserId());
+            LOG.info("No matching click found for conversion {} (user: {}, campaign: {})", 
+                conversion.getEventId(), conversion.getUserId(), conversion.getCampaignId());
         }
     }
 }
