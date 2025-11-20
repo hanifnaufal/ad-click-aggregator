@@ -94,6 +94,9 @@ docker cp build/libs/flink-processor.jar ad-click-aggregator-jobmanager-1:/tmp/
 docker exec ad-click-aggregator-jobmanager-1 flink run -d /tmp/flink-processor.jar
 ```
 
+or simply run `./dev-push.sh`
+Notes: it builds the jar and push it to the jobmanager
+
 ### 3. Verify Deployment
 
 - **Flink Web UI**: http://localhost:8081
