@@ -23,10 +23,10 @@ public class StatsController {
 
     @GetMapping
     public Mono<StatsResponse> getStats(
-            @RequestParam("start_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam("end_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(value = "campaign_id", required = false) String campaignId,
-            @RequestParam(value = "interval", defaultValue = "daily") String interval
+        @RequestParam("start_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam("end_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        @RequestParam(value = "campaign_id", required = false) String campaignId,
+        @RequestParam(value = "interval", defaultValue = "daily") String interval
     ) {
         return statsService.getStats(startDate, endDate, campaignId, interval);
     }

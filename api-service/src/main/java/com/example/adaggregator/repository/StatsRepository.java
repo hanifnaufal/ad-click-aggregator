@@ -65,13 +65,13 @@ public class StatsRepository {
         double cvr = clicks > 0 ? (double) conversions / clicks : 0.0;
 
         return StatsResponse.StatsEntry.builder()
-                .date(rs.getDate("time_bucket").toLocalDate())
-                .campaignId(rs.getString("campaign_id"))
-                .source(rs.getString("source"))
-                .clicks(clicks)
-                .conversions(conversions)
-                .revenue(revenue)
-                .cvr(cvr)
-                .build();
+            .date(rs.getDate("time_bucket").toLocalDate())
+            .campaignId(rs.getString("campaign_id"))
+            .source(rs.getString("source"))
+            .clicks(clicks)
+            .conversions(conversions)
+            .revenue(revenue)
+            .cvr(cvr)
+            .build();
     }
 }
