@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: api-service
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  datasource:
+    url: jdbc:clickhouse://localhost:8123/default
+    driver-class-name: com.clickhouse.jdbc.ClickHouseDriver
+    username: user
+    password: password
