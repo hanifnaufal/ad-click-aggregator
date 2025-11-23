@@ -18,7 +18,7 @@ public class StatsService {
     }
 
     public Mono<StatsResponse> getStats(LocalDate startDate, LocalDate endDate, String campaignId, String interval) {
-        return statsRepository.getDailyStats(startDate, endDate, campaignId)
+        return statsRepository.getStats(startDate, endDate, campaignId, interval)
                 .map(statsEntries -> StatsResponse.builder()
                         .interval(interval != null ? interval : "daily")
                         .data(statsEntries)

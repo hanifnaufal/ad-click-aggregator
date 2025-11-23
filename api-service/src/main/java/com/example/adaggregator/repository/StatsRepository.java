@@ -22,18 +22,24 @@ public class StatsRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public Mono<List<StatsResponse.StatsEntry>> getDailyStats(LocalDate startDate, LocalDate endDate, String campaignId) {
+    public Mono<List<StatsResponse.StatsEntry>> getStats(LocalDate startDate, LocalDate endDate, String campaignId, String interval) {
         return Mono.fromCallable(() -> {
+            String timeBucket = switch (interval.toLowerCase()) {
+                case "weekly" -> "toStartOfWeek(day)";
+                case "monthly" -> "toStartOfMonth(day)";
+                default -> "day";
+            };
+
             StringBuilder sql = new StringBuilder("""
                 SELECT
-                    day,
+                    %s as time_bucket,
                     campaign_id,
                     source,
                     sum(total_conversions) as conversions,
                     sum(total_revenue) as revenue
                 FROM daily_stats_mv
                 WHERE day >= ? AND day <= ?
-            """);
+            """.formatted(timeBucket));
 
             List<Object> params = new ArrayList<>();
             params.add(startDate);
@@ -44,8 +50,8 @@ public class StatsRepository {
                 params.add(campaignId);
             }
 
-            sql.append(" GROUP BY day, campaign_id, source");
-            sql.append(" ORDER BY day, campaign_id, source");
+            sql.append(" GROUP BY time_bucket, campaign_id, source");
+            sql.append(" ORDER BY time_bucket, campaign_id, source");
 
             return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapRow(rs), params.toArray());
         }).subscribeOn(Schedulers.boundedElastic());
@@ -59,7 +65,7 @@ public class StatsRepository {
         double cvr = clicks > 0 ? (double) conversions / clicks : 0.0;
 
         return StatsResponse.StatsEntry.builder()
-                .date(rs.getDate("day").toLocalDate())
+                .date(rs.getDate("time_bucket").toLocalDate())
                 .campaignId(rs.getString("campaign_id"))
                 .source(rs.getString("source"))
                 .clicks(clicks)
