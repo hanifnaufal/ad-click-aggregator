@@ -18,9 +18,10 @@ public class StatsService {
     }
 
     public Mono<StatsResponse> getStats(LocalDate startDate, LocalDate endDate, String campaignId, String interval) {
-        return statsRepository.getStats(startDate, endDate, campaignId, interval)
+        String effectiveInterval = interval != null ? interval : "daily";
+        return statsRepository.getStats(startDate, endDate, campaignId, effectiveInterval)
             .map(statsEntries -> StatsResponse.builder()
-                .interval(interval != null ? interval : "daily")
+                .interval(effectiveInterval)
                 .data(statsEntries)
                 .build());
     }
