@@ -33,20 +33,35 @@ public class StatsRepository {
             StringBuilder sql = new StringBuilder("""
                 SELECT
                     %s as time_bucket,
-                    campaign_id,
-                    source,
-                    sum(total_conversions) as conversions,
-                    sum(total_revenue) as revenue
-                FROM daily_stats_mv
-                WHERE day >= ? AND day <= ?
-            """.formatted(timeBucket));
+                    COALESCE(clicks.campaign_id, conversions.campaign_id) as campaign_id,
+                    COALESCE(clicks.source, conversions.source) as source,
+                    sum(COALESCE(clicks.total_clicks, 0)) as clicks,
+                    sum(COALESCE(conversions.total_conversions, 0)) as conversions,
+                    sum(COALESCE(conversions.total_revenue, 0)) as revenue
+                FROM daily_clicks_mv AS clicks
+                FULL OUTER JOIN (
+                    SELECT
+                        day,
+                        campaign_id,
+                        source,
+                        sum(total_conversions) as total_conversions,
+                        sum(total_revenue) as total_revenue
+                    FROM daily_stats_mv
+                    WHERE day >= ? AND day <= ?
+                    GROUP BY day, campaign_id, source
+                ) AS conversions
+                ON clicks.day = conversions.day
+                   AND clicks.campaign_id = conversions.campaign_id
+                   AND clicks.source = conversions.source
+                WHERE COALESCE(clicks.day, conversions.day) >= ? AND COALESCE(clicks.day, conversions.day) <= ?
+            """.formatted(timeBucket.replace("day", "COALESCE(clicks.day, conversions.day)")));
 
             List<Object> params = new ArrayList<>();
             params.add(startDate);
-            params.add(endDate);
+            params.add(endDate);            
 
             if (campaignId != null) {
-                sql.append(" AND campaign_id = ?");
+                sql.append(" AND COALESCE(clicks.campaign_id, conversions.campaign_id) = ?");
                 params.add(campaignId);
             }
 
@@ -58,10 +73,9 @@ public class StatsRepository {
     }
 
     private StatsResponse.StatsEntry mapRow(ResultSet rs) throws SQLException {
+        long clicks = rs.getLong("clicks");
         long conversions = rs.getLong("conversions");
         BigDecimal revenue = rs.getBigDecimal("revenue");
-        // Clicks are missing from the current schema design.
-        long clicks = 0; 
         double cvr = clicks > 0 ? (double) conversions / clicks : 0.0;
 
         return StatsResponse.StatsEntry.builder()
