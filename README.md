@@ -24,13 +24,14 @@ See [docs/system-design.md](docs/system-design.md)
 - Java 17+
 
 ### 1. Start Infrastructure
-Start Kafka, Zookeeper, and Kafka UI using Docker Compose:
+Start Kafka, Zookeeper, Kafka UI, Flink, and Clickhouse using Docker Compose:
 
 ```bash
 docker-compose up -d
 ```
 
 - **Kafka UI** will be available at [http://localhost:8090](http://localhost:8090).
+- **Flink GUI** will be available at [http://localhost:8081](http://localhost:8081).
 
 ### 2. Start API Service
 Navigate to the `api-service` directory and run the application:
@@ -74,4 +75,36 @@ curl -v -X POST http://localhost:8080/api/v1/events \
     "value": 19.99,
     "source": "ios_app"
   }'
+```
+
+#### Get Stats
+Retrieve aggregated statistics (clicks, conversions, revenue, CVR) for a specific date range.
+
+**Parameters:**
+- `start_date` (required): Start date in `YYYY-MM-DD` format.
+- `end_date` (required): End date in `YYYY-MM-DD` format.
+- `campaign_id` (optional): Filter by campaign ID.
+- `interval` (optional): Aggregation interval. Values: `daily` (default), `weekly`, `monthly`.
+
+**Example Request:**
+```bash
+curl "http://localhost:8080/api/v1/stats?start_date=2025-11-01&end_date=2025-11-30&campaign_id=camp-789&interval=daily"
+```
+
+**Example Response:**
+```json
+{
+  "interval": "daily",
+  "data": [
+    {
+      "date": "2025-11-23",
+      "campaignId": "camp-789",
+      "source": "google",
+      "clicks": 0,
+      "conversions": 2,
+      "revenue": 200.00,
+      "cvr": 0.0
+    }
+  ]
+}
 ```
