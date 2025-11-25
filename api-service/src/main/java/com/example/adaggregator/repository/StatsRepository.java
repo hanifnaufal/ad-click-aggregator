@@ -58,6 +58,8 @@ public class StatsRepository {
 
             List<Object> params = new ArrayList<>();
             params.add(startDate);
+            params.add(endDate);
+            params.add(startDate);
             params.add(endDate);            
 
             if (campaignId != null) {

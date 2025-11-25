@@ -17,8 +17,8 @@ public class SchemaInitializer implements CommandLineRunner {
     public void run(String... args) throws Exception {
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS attributed_events (
-                conversion_id UUID,
-                click_id UUID,
+                conversion_id String,
+                click_id String,
                 user_id String,
                 ad_id String,
                 campaign_id String,
@@ -50,19 +50,13 @@ public class SchemaInitializer implements CommandLineRunner {
 
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS raw_events_kafka (
-                event_type String,
-                event_id String,
-                user_id String,
-                campaign_id String,
-                ad_id String,
-                source String,
-                timestamp UInt64
+                raw_data String
             ) ENGINE = Kafka
             SETTINGS
                 kafka_broker_list = 'kafka:29092',
                 kafka_topic_list = 'raw-events',
-                kafka_group_name = 'clickhouse_clicks_consumer',
-                kafka_format = 'JSONEachRow',
+                kafka_group_name = 'clickhouse_clicks_consumer_v2',
+                kafka_format = 'LineAsString',
                 kafka_num_consumers = 1;
         """);
         
@@ -82,14 +76,14 @@ public class SchemaInitializer implements CommandLineRunner {
         jdbcTemplate.execute("""
             CREATE MATERIALIZED VIEW IF NOT EXISTS clicks_consumer_mv TO clicks AS
             SELECT
-                event_id,
-                user_id,
-                campaign_id,
-                ad_id,
-                source,
-                toDateTime(timestamp / 1000) as click_time
+                visitParamExtractString(raw_data, 'event_id') as event_id,
+                visitParamExtractString(raw_data, 'user_id') as user_id,
+                visitParamExtractString(raw_data, 'campaign_id') as campaign_id,
+                visitParamExtractString(raw_data, 'ad_id') as ad_id,
+                visitParamExtractString(raw_data, 'source') as source,
+                toDateTime(visitParamExtractUInt(raw_data, 'timestamp') / 1000) as click_time
             FROM raw_events_kafka
-            WHERE event_type = 'click';
+            WHERE visitParamExtractString(raw_data, 'event_type') = 'click';
         """);
 
         jdbcTemplate.execute("""
@@ -104,6 +98,43 @@ public class SchemaInitializer implements CommandLineRunner {
                 count() as total_clicks
             FROM clicks
             GROUP BY day, campaign_id, source;
+        """);
+
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS attributed_events_kafka (
+                conversion_id String,
+                click_id String,
+                user_id String,
+                ad_id String,
+                campaign_id String,
+                source String,
+                conversion_type String,
+                value Decimal(18, 2),
+                click_time UInt64,
+                conversion_time UInt64
+            ) ENGINE = Kafka
+            SETTINGS
+                kafka_broker_list = 'kafka:29092',
+                kafka_topic_list = 'attributed-events',
+                kafka_group_name = 'clickhouse_attributed_consumer_v2',
+                kafka_format = 'JSONEachRow',
+                kafka_num_consumers = 1;
+        """);
+
+        jdbcTemplate.execute("""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS attributed_events_mv TO attributed_events AS
+            SELECT
+                conversion_id,
+                click_id,
+                user_id,
+                ad_id,
+                campaign_id,
+                source,
+                conversion_type,
+                value,
+                toDateTime(click_time / 1000) as click_time,
+                toDateTime(conversion_time / 1000) as conversion_time
+            FROM attributed_events_kafka;
         """);
     }
 }
