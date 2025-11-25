@@ -33,22 +33,6 @@ public class SchemaInitializer implements CommandLineRunner {
         """);
 
         jdbcTemplate.execute("""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS daily_stats_mv
-            ENGINE = SummingMergeTree()
-            PARTITION BY toYYYYMMDD(day)
-            ORDER BY (campaign_id, source, conversion_type, day)
-            AS SELECT
-                toStartOfDay(conversion_time) as day,
-                campaign_id,
-                source,
-                conversion_type,
-                count() as total_conversions,
-                sum(value) as total_revenue
-            FROM attributed_events
-            GROUP BY day, campaign_id, source, conversion_type;
-        """);
-
-        jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS raw_events_kafka (
                 raw_data String
             ) ENGINE = Kafka
@@ -87,16 +71,41 @@ public class SchemaInitializer implements CommandLineRunner {
         """);
 
         jdbcTemplate.execute("""
-            CREATE MATERIALIZED VIEW IF NOT EXISTS daily_clicks_mv
+            CREATE MATERIALIZED VIEW IF NOT EXISTS daily_combined_stats_mv
             ENGINE = SummingMergeTree()
             PARTITION BY toYYYYMMDD(day)
             ORDER BY (campaign_id, source, day)
+            POPULATE
             AS SELECT
-                toStartOfDay(click_time) as day,
+                day,
                 campaign_id,
                 source,
-                count() as total_clicks
-            FROM clicks
+                sum(clicks) as clicks,
+                sum(conversions) as conversions,
+                sum(revenue) as revenue
+            FROM (
+                SELECT
+                    toStartOfDay(click_time) as day,
+                    campaign_id,
+                    source,
+                    count() as clicks,
+                    0 as conversions,
+                    0 as revenue
+                FROM clicks
+                GROUP BY day, campaign_id, source
+                
+                UNION ALL
+                
+                SELECT
+                    toStartOfDay(conversion_time) as day,
+                    campaign_id,
+                    source,
+                    0 as clicks,
+                    count() as conversions,
+                    sum(value) as revenue
+                FROM attributed_events
+                GROUP BY day, campaign_id, source
+            )
             GROUP BY day, campaign_id, source;
         """);
 

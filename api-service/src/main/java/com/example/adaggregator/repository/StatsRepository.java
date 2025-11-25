@@ -33,37 +33,21 @@ public class StatsRepository {
             StringBuilder sql = new StringBuilder("""
                 SELECT
                     %s as time_bucket,
-                    COALESCE(clicks.campaign_id, conversions.campaign_id) as campaign_id,
-                    COALESCE(clicks.source, conversions.source) as source,
-                    sum(COALESCE(clicks.total_clicks, 0)) as clicks,
-                    sum(COALESCE(conversions.total_conversions, 0)) as conversions,
-                    sum(COALESCE(conversions.total_revenue, 0)) as revenue
-                FROM daily_clicks_mv AS clicks
-                FULL OUTER JOIN (
-                    SELECT
-                        day,
-                        campaign_id,
-                        source,
-                        sum(total_conversions) as total_conversions,
-                        sum(total_revenue) as total_revenue
-                    FROM daily_stats_mv
-                    WHERE day >= ? AND day <= ?
-                    GROUP BY day, campaign_id, source
-                ) AS conversions
-                ON clicks.day = conversions.day
-                   AND clicks.campaign_id = conversions.campaign_id
-                   AND clicks.source = conversions.source
-                WHERE COALESCE(clicks.day, conversions.day) >= ? AND COALESCE(clicks.day, conversions.day) <= ?
-            """.formatted(timeBucket.replace("day", "COALESCE(clicks.day, conversions.day)")));
+                    campaign_id,
+                    source,
+                    sum(clicks) as clicks,
+                    sum(conversions) as conversions,
+                    sum(revenue) as revenue
+                FROM daily_combined_stats_mv
+                WHERE day >= ? AND day <= ?
+            """.formatted(timeBucket));
 
             List<Object> params = new ArrayList<>();
             params.add(startDate);
             params.add(endDate);
-            params.add(startDate);
-            params.add(endDate);            
 
             if (campaignId != null) {
-                sql.append(" AND COALESCE(clicks.campaign_id, conversions.campaign_id) = ?");
+                sql.append(" AND campaign_id = ?");
                 params.add(campaignId);
             }
 
